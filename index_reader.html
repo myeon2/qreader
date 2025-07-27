@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR 코드 리더</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+        }
+        /* Custom styles for better aesthetics */
+        .card {
+            background-color: #ffffff;
+            border-radius: 1rem; /* Rounded corners */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+        }
+        .btn {
+            background-color: #4f46e5; /* Indigo 600 */
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background-color: #4338ca; /* Indigo 700 */
+        }
+        .input-file {
+            display: none; /* Hide default file input */
+        }
+        .custom-file-upload {
+            border: 2px dashed #d1d5db; /* Gray 300 */
+            border-radius: 0.5rem;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.3s ease;
+        }
+        .custom-file-upload:hover {
+            border-color: #9ca3af; /* Gray 400 */
+        }
+        .message-box {
+            background-color: #eff6ff; /* Blue 50 */
+            border: 1px solid #bfdbfe; /* Blue 200 */
+            color: #1e40af; /* Blue 800 */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+        }
+        .error-message {
+            background-color: #fee2e2; /* Red 50 */
+            border: 1px solid #fca5a5; /* Red 200 */
+            color: #b91c1c; /* Red 800 */
+        }
+        .success-message {
+            background-color: #ecfdf5; /* Green 50 */
+            border: 1px solid #a7f3d0; /* Green 200 */
+            color: #065f46; /* Green 800 */
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div class="card w-full max-w-lg mx-auto">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">QR 코드 리더</h1>
+
+        <div class="mb-6">
+            <label for="fileInput" class="custom-file-upload block">
+                <p class="text-gray-600 mb-2">이미지 파일을 여기에 끌어다 놓거나 클릭하여 업로드하세요.</p>
+                <p class="text-sm text-gray-500">(붙여넣기도 가능합니다)</p>
+                <input type="file" id="fileInput" accept="image/*" class="input-file">
+            </label>
+        </div>
+
+        <div id="message" class="message-box hidden"></div>
+
+        <div id="decodedUrlContainer" class="hidden mt-4 p-4 bg-gray-100 rounded-lg">
+            <p class="text-gray-700 font-semibold">디코딩된 URL:</p>
+            <a id="decodedUrl" href="#" target="_blank" class="text-blue-600 hover:underline break-all"></a>
+        </div>
+
+        <!-- Made by section -->
+        <div class="text-center text-gray-500 text-sm mt-6">
+            made by. 면쌤
+        </div>
+    </div>
+
+    <!-- jsQR library CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const messageDiv = document.getElementById('message');
+        const decodedUrlContainer = document.getElementById('decodedUrlContainer');
+        const decodedUrlLink = document.getElementById('decodedUrl');
+        const customFileUpload = document.querySelector('.custom-file-upload');
+
+        // Function to display messages
+        function showMessage(msg, type = 'info') {
+            messageDiv.textContent = msg;
+            messageDiv.className = `message-box ${type}-message block`;
+            messageDiv.classList.remove('hidden');
+        }
+
+        // Function to hide messages
+        function hideMessage() {
+            messageDiv.classList.add('hidden');
+        }
+
+        // Function to display decoded URL
+        function showDecodedUrl(url) {
+            decodedUrlLink.href = url;
+            decodedUrlLink.textContent = url;
+            decodedUrlContainer.classList.remove('hidden');
+        }
+
+        // Function to hide decoded URL
+        function hideDecodedUrl() {
+            decodedUrlContainer.classList.add('hidden');
+        }
+
+        // Function to process image for QR code
+        async function processImage(imageData) {
+            hideMessage();
+            hideDecodedUrl();
+            showMessage('QR 코드를 스캔 중입니다...', 'info');
+
+            const image = new Image();
+            image.src = imageData;
+
+            image.onload = () => {
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = image.width;
+                canvas.height = image.height;
+                context.drawImage(image, 0, 0, image.width, image.height);
+
+                const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert",
+                });
+
+                if (code) {
+                    const url = code.data;
+                    // Basic URL validation
+                    try {
+                        new URL(url); // Check if it's a valid URL
+                        showMessage('QR 코드를 찾았습니다!', 'success');
+                        showDecodedUrl(url);
+                        // Automatically navigate to the URL after a short delay
+                        setTimeout(() => {
+                            window.location.href = url;
+                        }, 1500); // Navigate after 1.5 seconds
+                    } catch (e) {
+                        showMessage('QR 코드를 찾았지만 유효한 URL이 아닙니다.', 'error');
+                        showDecodedUrl(url); // Still show the decoded data even if not a valid URL
+                    }
+                } else {
+                    showMessage('QR 코드를 찾을 수 없습니다.', 'error');
+                }
+            };
+
+            image.onerror = () => {
+                showMessage('이미지를 로드할 수 없습니다. 유효한 이미지 파일인지 확인해주세요.', 'error');
+            };
+        }
+
+        // Handle file input change
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    processImage(e.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Handle paste event (Ctrl+V for images or text)
+        document.addEventListener('paste', (event) => {
+            const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+            let imagePasted = false;
+            for (const item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    const blob = item.getAsFile();
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        processImage(e.target.result);
+                    };
+                    reader.readAsDataURL(blob);
+                    event.preventDefault(); // Prevent default paste behavior
+                    imagePasted = true;
+                    break; // Process only the first image found
+                }
+            }
+
+            // If no image data was pasted, check for plain text that might be a URL
+            if (!imagePasted) {
+                const pastedText = event.clipboardData.getData('text/plain');
+                if (pastedText) {
+                    try {
+                        new URL(pastedText); // Check if it's a valid URL
+                        showMessage('클립보드에서 URL을 감지했습니다. 이동합니다.', 'success');
+                        showDecodedUrl(pastedText);
+                        setTimeout(() => {
+                            window.location.href = pastedText;
+                        }, 1500);
+                        event.preventDefault(); // Prevent default paste behavior for URL text
+                    } catch (e) {
+                        // Not a valid URL, do nothing or show a generic message
+                        // showMessage('클립보드에 유효한 URL이 없습니다.', 'info'); // Optional: uncomment for more feedback
+                    }
+                }
+            }
+        });
+
+        // Handle drag and drop
+        customFileUpload.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            customFileUpload.classList.add('border-blue-500'); // Highlight on drag over
+        });
+
+        customFileUpload.addEventListener('dragleave', (event) => {
+            event.preventDefault();
+            customFileUpload.classList.remove('border-blue-500'); // Remove highlight
+        });
+
+        customFileUpload.addEventListener('drop', (event) => {
+            event.preventDefault();
+            customFileUpload.classList.remove('border-blue-500'); // Remove highlight
+            const file = event.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    processImage(e.target.result);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                showMessage('이미지 파일만 드롭할 수 있습니다.', 'error');
+            }
+        });
+    </script>
+</body>
+</html>
